@@ -1,20 +1,22 @@
-
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.*;
 
-public class Client {
-    private JTextField message_box;
+public class Client implements Runnable {
+    private JTextField message_box, ip_box;
     private JTextArea chat_area;
     private JFrame window;
     private JScrollPane chat_scroller;
     private JButton send_button;
+    private JLabel ip_label;
+    private String ip;
     Client() {
         window = new JFrame();
-        window.setSize(800, 600);
+        window.setSize(800, 650);
         window.setTitle("Chat Box");
         window.setLayout(null);
         window.setResizable(false);
@@ -25,6 +27,12 @@ public class Client {
 
         chat_scroller = new JScrollPane(chat_area, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         chat_scroller.setBounds(80, 20, 600, 400);
+
+        ip_label= new JLabel("Coloque la dirección ip del destinatario:");
+        ip_label.setBounds(100, 520, 300, 50);
+        
+        ip_box = new JTextField();
+        ip_box.setBounds(340, 520, 200, 50);
 
         EnviaTexto mievento = new EnviaTexto();
         send_button = new JButton("Send");
@@ -38,27 +46,37 @@ public class Client {
         window.add(message_box);
         window.add(chat_scroller);
         window.add(send_button);
-
+        window.add(chat_scroller);
+        window.add(ip_label);
+        window.add(ip_box);
         window.setVisible(true);
+        
+
+        Thread hilo= new Thread(this);
+        hilo.start();
     }
 
     private class EnviaTexto implements ActionListener {
     public void actionPerformed(ActionEvent e) {
+        
         try {
-            Socket socket_cliente= new Socket("127.0.0.1",1234);
+            ip=ip_box.getText();
+            Socket socket_cliente= new Socket(ip,1234);
             DataOutputStream flujo_salida = new DataOutputStream(socket_cliente.getOutputStream()); //este flujo de datos circula por el socket
             flujo_salida.writeUTF(message_box.getText());// escribe en el flujo de datos lo que hay en message_box
             flujo_salida.close();
             chat_area.append("\n" + message_box.getText());
             message_box.setText("");
             chat_area.setCaretPosition(chat_area.getDocument().getLength());;
+            socket_cliente.close();
 
         } catch (UnknownHostException e1) {
             // TODO Auto-generated catch block
             e1.printStackTrace();
+            chat_area.append("\n Introduzca una dirección ip válida");
         } catch (IOException e1) {
             // TODO Auto-generated catch block
-            System.out.println(e1.getMessage());
+            chat_area.append("\n Verifique que la dirección ip sea la correcta");
         }
     }
 }
@@ -67,6 +85,26 @@ public class Client {
         SwingUtilities.invokeLater(() -> new Client());
     }
 
+    public void run() {
+        // TODO Auto-generated method stub
+        //System.out.println("El hilo funciona");
+
+        try {
+            ServerSocket socket_servidor= new ServerSocket(12345);
+            while(true){
+            Socket misocket= socket_servidor.accept();
+            DataInputStream flujo_entrada = new DataInputStream(misocket.getInputStream());
+            String mensaje_texto= flujo_entrada.readUTF();
+            chat_area.append("\n"+mensaje_texto);
+            misocket.close();  //se debe crear un loop para volver a abrir el socket
+            chat_area.setCaretPosition(chat_area.getDocument().getLength());;
+            }
+            
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
 }
 
 
